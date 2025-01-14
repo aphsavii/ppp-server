@@ -10,6 +10,9 @@ const dbPool = new Pool({
   ssl: {
     rejectUnauthorized: false,
   },
+  statement_timeout: 10000,
+  maxLifetimeSeconds: 30,
+  idleTimeoutMillis: 30000,
 });
 
 // Test the connection
