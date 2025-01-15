@@ -40,10 +40,10 @@ class UserController {
             const hashedPassword = await bcrypt.hash(password, 10);
             const insertQuery = `
                 INSERT INTO users (regno, name, trade, batch, password, access_token, role)
-                VALUES ($1, $2, $3, $4, $5, $6 'user')
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
                 RETURNING regno
             `;
-            const insertValues = [regno, name, trade, batch, hashedPassword, accessToken];
+            const insertValues = [regno, name, trade, batch, hashedPassword, accessToken, "user"];
             const { rows: insertRows } = await client.query(insertQuery, insertValues);
 
             const message = 'User registered successfully';
