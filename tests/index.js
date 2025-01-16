@@ -11,7 +11,7 @@ export const options = {
 };
 
 export default function () {
-  const res = http.post('http://localhost:3000/aptitude/appear/27',{trade:"GCD",regno:"2331080"});
+  const res = http.post('http://localhost:3000/aptitude/appear/28',{trade:"GCS",regno:"2331080"});
   check(res, { 'status is 200': (r) => r.status === 200 });
   sleep(1);
 }

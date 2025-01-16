@@ -4,13 +4,14 @@ import { dbPool } from "../connections/pg-connection";
 import ApiResponse from "../utils/ApiResponse";
 import ApiError from "../utils/ApiError";
 import { CustomRequest } from "../middlewares/auth.middleware";
+import { redisClient } from "../connections/redis-connection";
 
 interface Aptitude {
     id?: number,
     name: string,
     test_timestamp: string, // Unix timestamp
     duration: number,
-    total_questions:number
+    total_questions: number
 }
 
 interface Answer {
@@ -218,8 +219,14 @@ class AptitudeController {
             trade: string,
         } = req.body;
         const aptitudeId = req.params.id;
-        const client = await dbPool.connect();
+        if (!userData || !aptitudeId) return res.status(400).json(new ApiError("Bad request", 400));
 
+        const cache = await redisClient.get(`apti-${aptitudeId}:${userData.trade}`);
+        if (cache) {
+            return res.status(200).json(new ApiResponse("Aptitude fetched Successfully", 200, JSON.parse(cache)));
+        }
+
+        const client = await dbPool.connect();
         try {
 
             const r1 = await client.query(
@@ -234,12 +241,12 @@ class AptitudeController {
             }
             const apti = r1.rows[0];
             // console.log(apti.test_timestamp, currentTimestamp)
-            if(+apti.test_timestamp > +currentTimestamp){
-                return res.status(404).json(new ApiError('Aptitude test has not started yet', 401));
-            }
-            else if (+apti.test_timestamp + +apti.duration * 60 < +currentTimestamp) {
-                return res.status(404).json(new ApiError('Aptitude test has ended', 401));
-            }
+            // if (+apti.test_timestamp > +currentTimestamp) {
+            //     return res.status(404).json(new ApiError('Aptitude test has not started yet', 401));
+            // }
+            // else if (+apti.test_timestamp + +apti.duration * 60 < +currentTimestamp) {
+            //     return res.status(404).json(new ApiError('Aptitude test has ended', 401));
+            // }
 
 
             const { rows } = await client.query(
@@ -261,11 +268,14 @@ class AptitudeController {
                 [aptitudeId, userData.trade]
             );
 
-
-            return res.status(200).json(new ApiResponse('Aptitude test questions fetched successfully', 200, {
+            const response = {
                 aptitude: apti,
                 questions: rows
-            }));
+            }
+
+            await redisClient.set(`apti-${aptitudeId}:${userData.trade}`, JSON.stringify(response), { EX: 600 });
+
+            return res.status(200).json(new ApiResponse('Aptitude test questions fetched successfully', 200, response));
         } catch (error) {
             console.log(error)
             return res.status(500).json(new ApiError((error as Error).message, 500));
@@ -319,7 +329,7 @@ class AptitudeController {
             }
             const apti = r1.rows[0];
 
-            if(+apti.test_timestamp > +currentTimestamp){
+            if (+apti.test_timestamp > +currentTimestamp) {
                 return res.status(404).json(new ApiError('Aptitude test has not started yet', 401));
             }
             else if (+apti.test_timestamp + +apti.duration * 60 < +currentTimestamp) {
@@ -471,38 +481,38 @@ class AptitudeController {
     public getUserApitudeResponse = asyncHandler(async (req: CustomRequest, res: Response) => {
         const aptiId = req.params.id;
         let regno = req?.query?.regno;
-        
-        if (req.user.role != "admin" &&  regno && req.user.regno!= regno) return res.status(401).json(new ApiError("Award for most oversmartness goes to you", 401));
-        if(!regno) regno = req.user.regno;
-        
 
-            try {
-                // Query to get the user's answers and marks
-                const ansQuery = `
+        if (req.user.role != "admin" && regno && req.user.regno != regno) return res.status(401).json(new ApiError("Award for most oversmartness goes to you", 401));
+        if (!regno) regno = req.user.regno;
+
+
+        try {
+            // Query to get the user's answers and marks
+            const ansQuery = `
                 SELECT answers, marks
                 FROM user_responses
                 WHERE aptitude_test_id = $1 AND regno = $2;
             `;
-                const { rows } = await dbPool.query(ansQuery, [aptiId, regno]);
+            const { rows } = await dbPool.query(ansQuery, [aptiId, regno]);
 
-                if (rows.length === 0) {
-                    return res.status(404).json(new ApiError("You didn't appear for this test.", 404));
-                }
+            if (rows.length === 0) {
+                return res.status(404).json(new ApiError("You didn't appear for this test.", 404));
+            }
 
-                const answers: Answer[] = JSON.parse(rows[0].answers);
-                const userMarks = rows[0].marks;
+            const answers: Answer[] = JSON.parse(rows[0].answers);
+            const userMarks = rows[0].marks;
 
-                // Query to get all questions for the aptitude test 
-                const questionQuery = `
+            // Query to get all questions for the aptitude test 
+            const questionQuery = `
                 SELECT q.id, q.description, q.options, q.correct_option, format, question_type
                 FROM questions q
                 INNER JOIN aptitude_questions aq ON q.id = aq.question_id
                 WHERE aq.aptitude_test_id = $1;
             `;
-                const questionRows = await dbPool.query(questionQuery, [aptiId]);
+            const questionRows = await dbPool.query(questionQuery, [aptiId]);
 
-                // Query to calculate the rank and total users who appeared
-                const rankQuery = `
+            // Query to calculate the rank and total users who appeared
+            const rankQuery = `
                 WITH ranked_responses AS (
                     SELECT 
                         regno,
@@ -520,36 +530,36 @@ class AptitudeController {
                 FROM ranked_responses
                 WHERE regno = $2;
             `;
-                const rankResult = await dbPool.query(rankQuery, [aptiId, regno]);
+            const rankResult = await dbPool.query(rankQuery, [aptiId, regno]);
 
-                if (rankResult.rows.length === 0) {
-                    return res.status(404).json(new ApiError("Unable to calculate rank for the given user.", 404));
-                }
-
-                const { rank, total_users } = rankResult.rows[0];
-
-                // Prepare the response with questions and user's selected answers
-                const response = answers.map((ans) => {
-                    const question = questionRows.rows.find((q: any) => q.id === ans.question_id);
-                    return {
-                        question,
-                        answer: ans.selected_option,
-                    };
-                });
-
-                // Add rank, marks, and total users to the response
-                const data = {
-                    rank,
-                    total_users,
-                    marks: userMarks,
-                    responses: response,
-                };
-
-                return res.status(200).json(new ApiResponse("Aptitude response fetched successfully", 200, data));
-            } catch (error) {
-                return res.status(500).json(new ApiError((error as Error).message, 500));
+            if (rankResult.rows.length === 0) {
+                return res.status(404).json(new ApiError("Unable to calculate rank for the given user.", 404));
             }
-        });
+
+            const { rank, total_users } = rankResult.rows[0];
+
+            // Prepare the response with questions and user's selected answers
+            const response = answers.map((ans) => {
+                const question = questionRows.rows.find((q: any) => q.id === ans.question_id);
+                return {
+                    question,
+                    answer: ans.selected_option,
+                };
+            });
+
+            // Add rank, marks, and total users to the response
+            const data = {
+                rank,
+                total_users,
+                marks: userMarks,
+                responses: response,
+            };
+
+            return res.status(200).json(new ApiResponse("Aptitude response fetched successfully", 200, data));
+        } catch (error) {
+            return res.status(500).json(new ApiError((error as Error).message, 500));
+        }
+    });
 
 
 }
