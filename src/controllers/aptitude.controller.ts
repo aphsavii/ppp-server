@@ -10,6 +10,7 @@ interface Aptitude {
     name: string,
     test_timestamp: string, // Unix timestamp
     duration: number,
+    total_questions:number
 }
 
 interface Answer {
@@ -23,10 +24,10 @@ class AptitudeController {
         const client = await dbPool.connect();
         try {
             const { rows } = await client.query(
-                `INSERT INTO aptitude_tests (name, test_timestamp, duration)
-                VALUES ($1, $2, $3)
+                `INSERT INTO aptitude_tests (name, test_timestamp, duration, total_questions)
+                VALUES ($1, $2, $3, $4)
                 RETURNING *`,
-                [apti.name, apti.test_timestamp, apti.duration]
+                [apti.name, apti.test_timestamp, apti.duration, apti.total_questions]
             );
             return res.status(201).json(new ApiResponse('Aptitude test created successfully', 201, rows[0]));
         } catch (error) {

@@ -23,7 +23,7 @@ CREATE TABLE aptitude_tests (
     name VARCHAR(100) NOT NULL,
     test_timestamp VARCHAR(30)  NOT NULL,   -- unix timestamp
     duration INT NOT NULL,
-    total_present INT DEFAULT 0  
+    total_questions INT DEFAULT 0  
 );
 -- Table: Questions
 CREATE TABLE questions (
@@ -54,4 +54,20 @@ CREATE TABLE user_responses (
     answers TEXT NOT NULL,
     response_time  VARCHAR(30) NOT NULL,
     marks INT DEFAULT 0
+);
+
+-- DSA Sheet Questions
+CREATE TABLE dsa_questions (
+    id SERIAL PRIMARY KEY,
+   name TEXT NOT NULL,
+   link TEXT NOT NULL,
+   folder TEXT NOT NULL,
+   order INT NOT NULL
+);
+
+-- DSA Sheet Solved Questions
+CREATE TABLE dsa_solved (
+    id SERIAL PRIMARY KEY,
+    regno VARCHAR(7) NOT NULL REFERENCES Users(regno) ON DELETE CASCADE,
+    question_id INT NOT NULL REFERENCES dsa_questions(id) ON DELETE CASCADE,
 );

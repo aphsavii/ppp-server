@@ -4,7 +4,7 @@ import ApiError from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
 import { dbPool } from '../connections/pg-connection';
 import bcrypt from 'bcrypt';
-import { generateJwt } from '../middlewares/auth.middleware';
+import { CustomRequest, generateJwt } from '../middlewares/auth.middleware';
 import jwt from 'jsonwebtoken';
 import { redisClient } from '../connections/redis-connection';
 import { otpFormat } from '../utils/mail/OTPFormat';
@@ -136,7 +136,7 @@ class UserController {
     public generateOTP = asyncHandler(async (req: Request, res: Response) => {
         const { regno } = req.params;
 
-        const email:string = regno + "@sliet.ac.in";
+        const email: string = regno + "@sliet.ac.in";
         let otp = "";
         for (let i = 0; i < 6; i++) {
             otp += Math.floor(Math.random() * 10);
@@ -176,7 +176,108 @@ class UserController {
         } catch (error) {
             res.status(500).json(new ApiError((error as Error).message, 500));
         }
-    })
+    });
+
+    public getUserDashboard = asyncHandler(async (req: CustomRequest, res: Response) => {
+        const userData = req.user;
+        const client = await dbPool.connect();
+        if (!userData.regno) return res.status(401).json(new ApiError("Unauthorized Request", 401));
+        try {
+            const userDetailsResult = await client.query(
+                `SELECT regno,name,trade,batch,avatar FROM users WHERE regno = $1`,
+                [userData.regno]
+            );
+
+
+            const userDetails = userDetailsResult?.rows[0];
+            if (!userDetails) {
+                return res.status(404).json(new ApiError('User not found', 404));
+            }
+            // Fetch test stats
+            const testStatsResult = await client.query(
+                `SELECT 
+                COUNT(ur.id) AS total_tests_taken, -- Total tests taken by the user
+                ROUND(AVG((ur.marks::DECIMAL / NULLIF(at.total_questions, 0)) * 100), 2) AS average_score -- Average score in percentage
+                FROM user_responses ur
+                JOIN aptitude_tests at ON ur.aptitude_test_id = at.id
+                WHERE ur.regno = $1`, [userData.regno]
+            );
+            const testStats = testStatsResult?.rows[0];
+
+            const lastTestResult = await client.query(
+                `SELECT 			
+                at.id AS test_id,
+                at.name AS test_name, 
+				at.test_timestamp,
+				at.duration,
+                at.total_questions AS total_score,
+                ur.marks AS score
+                FROM user_responses ur
+                JOIN aptitude_tests at ON ur.aptitude_test_id = at.id
+                WHERE ur.regno = $1
+                ORDER BY ur.id DESC
+                LIMIT 1`, [userData.regno]
+            );
+
+            const lastTest = lastTestResult?.rows[0];
+
+            const recentTestsResult = await client.query(`
+                SELECT 
+                at.name AS test_name, 
+                at.test_timestamp, 
+                ur.marks AS score,
+                at.total_questions AS total_score
+                FROM user_responses ur
+                JOIN aptitude_tests at ON ur.aptitude_test_id = at.id
+                WHERE ur.regno = $1
+                ORDER BY ur.id DESC
+                LIMIT 5 
+                `, [userData.regno]);
+
+            const recentTests = recentTestsResult?.rows;
+
+            const topicAnalysisResult = await client.query(
+                `SELECT 
+                    unnest(q.topic_tags) AS topic, -- Break down by individual topic
+                    COUNT(q.id) AS total_questions, -- Total questions available for the topic
+                    COUNT(parsed_data.question_id) AS total_solved, -- Total questions solved by the user
+                    SUM(CASE WHEN q.correct_option = CAST(parsed_data.selected_option AS INT) THEN 1 ELSE 0 END) AS correct_answers, -- Correct answers
+                    COUNT(parsed_data.question_id) - 
+                    SUM(CASE WHEN q.correct_option = CAST(parsed_data.selected_option AS INT) THEN 1 ELSE 0 END) AS incorrect_answers, -- Incorrect answers
+                    ROUND(
+                        SUM(CASE WHEN q.correct_option = CAST(parsed_data.selected_option AS INT) THEN 1 ELSE 0 END)::DECIMAL * 100 / NULLIF(COUNT(parsed_data.question_id), 0),
+                        2
+                    ) AS accuracy -- Accuracy percentage
+                FROM user_responses ur
+                CROSS JOIN LATERAL jsonb_array_elements(ur.answers::jsonb) AS answers_array
+                CROSS JOIN LATERAL (
+                    SELECT 
+                        (answers_array->>'question_id')::INT AS question_id,
+                        (answers_array->>'selected_option')::INT AS selected_option
+                ) AS parsed_data
+                JOIN questions q ON q.id = parsed_data.question_id
+                WHERE ur.regno = $1 -- Filter by user's registration number
+                GROUP BY unnest(q.topic_tags);`,
+                [userData.regno]
+            );
+
+            const topicAnalysis = (await topicAnalysisResult).rows;
+
+            const response = {
+                userDetails,
+                testStats,
+                lastTest,
+                recentTests,
+                topicAnalysis
+            }
+            return res.status(200).json(new ApiResponse('User dashboard data', 200, response));
+
+        } catch (err) {
+            return res.status(500).json(new ApiError((err as Error).message, 500));
+        } finally {
+            client.release();
+        }
+    });
 
 
 }
