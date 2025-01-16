@@ -241,12 +241,12 @@ class AptitudeController {
             }
             const apti = r1.rows[0];
             // console.log(apti.test_timestamp, currentTimestamp)
-            if (+apti.test_timestamp > +currentTimestamp) {
-                return res.status(404).json(new ApiError('Aptitude test has not started yet', 401));
-            }
-            else if (+apti.test_timestamp + +apti.duration * 60 < +currentTimestamp) {
-                return res.status(404).json(new ApiError('Aptitude test has ended', 401));
-            }
+            // if (+apti.test_timestamp > +currentTimestamp) {
+            //     return res.status(404).json(new ApiError('Aptitude test has not started yet', 401));
+            // }
+            // else if (+apti.test_timestamp + +apti.duration * 60 < +currentTimestamp) {
+            //     return res.status(404).json(new ApiError('Aptitude test has ended', 401));
+            // }
 
 
             const { rows } = await client.query(
