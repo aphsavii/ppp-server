@@ -561,6 +561,93 @@ class AptitudeController {
         }
     });
 
+    public getAptitudeToppers = asyncHandler(async (req: Request, res: Response) => {
+        const aptiId = req.params.id;
+        const client = await dbPool.connect();
+
+        try {
+            // Fetch overall toppers
+            const overallToppersQuery = await client.query(
+                `WITH RankedToppers AS (
+                    SELECT 
+                        u.regno, 
+                        u.name, 
+                        u.avatar,
+                        u.trade,
+                        ur.marks,
+                        ur.response_time,
+                        RANK() OVER (ORDER BY ur.marks DESC, ur.response_time ASC) AS rank
+                    FROM 
+                        user_responses ur
+                    INNER JOIN 
+                        users u ON ur.regno = u.regno
+                    WHERE 
+                        ur.aptitude_test_id = $1
+                )
+                SELECT * FROM RankedToppers
+                WHERE rank <= 3;`,
+                [aptiId]
+            );
+
+            const overallToppers = overallToppersQuery.rows;
+
+            // Fetch trade-wise toppers
+            const tradeToppersQuery = await client.query(
+                `WITH TradeRankedToppers AS (
+                    SELECT 
+                        u.regno, 
+                        u.name, 
+                        u.avatar,   
+                        u.trade,
+                        ur.marks,
+                        ur.response_time,
+                        RANK() OVER (PARTITION BY u.trade ORDER BY ur.marks DESC, ur.response_time ASC) AS rank
+                    FROM 
+                        user_responses ur
+                    INNER JOIN 
+                        users u ON ur.regno = u.regno
+                    WHERE 
+                        ur.aptitude_test_id = $1
+                )
+                SELECT * FROM TradeRankedToppers
+                WHERE rank <= 3;`,
+                [aptiId]
+            );
+            
+
+            const tradeToppers = tradeToppersQuery.rows;
+
+            const response = {
+                overall: overallToppers,
+                trade: tradeToppers,
+            };
+
+            return res.status(200).json(new ApiResponse('Toppers fetched successfully', 200, response));
+        } catch (error) {
+            return res.status(500).json(new ApiError((error as Error).message, 500));
+        } finally {
+            client.release();
+        }
+    });
+
+    public getPastAptitudes = asyncHandler(async (req: Request, res: Response) => {
+        const currentTimestamp: string = Math.floor(Date.now() / 1000).toString();
+        const client = await dbPool.connect();
+        try {
+            const { rows } = await client.query(
+                `SELECT id, name, test_timestamp, duration 
+                 FROM aptitude_tests
+                 WHERE test_timestamp < $1 
+                 ORDER BY test_timestamp DESC`,
+                [currentTimestamp]
+            );
+            return res.status(200).json(new ApiResponse('Past aptitude tests fetched successfully', 200, rows));
+        } catch (error) {
+            return res.status(500).json(new ApiError((error as Error).message, 500));
+        } finally {
+            client.release();
+        }
+    });
 
 }
 

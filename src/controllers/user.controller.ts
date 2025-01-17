@@ -9,6 +9,7 @@ import jwt from 'jsonwebtoken';
 import { redisClient } from '../connections/redis-connection';
 import { otpFormat } from '../utils/mail/OTPFormat';
 import { sendMail } from '../utils/mail/sendMail';
+import uploadOnCloud from '../utils/uploadOnCloud';
 
 interface Register {
     name: string,
@@ -175,6 +176,26 @@ class UserController {
             return res.status(200).json(new ApiResponse("Password Changed Successfully", 200, []));
         } catch (error) {
             res.status(500).json(new ApiError((error as Error).message, 500));
+        }
+    });
+
+    public uploadAvatar = asyncHandler(async (req: CustomRequest, res: Response) => {
+        const userData = req.user;
+        const avatar = req.file?.path || '';
+        if (!avatar) return res.status(400).json(new ApiError("Avatar is required", 400));
+        const client = await dbPool.connect();
+        const uploadedUrl = await uploadOnCloud.upload(avatar, "avatars");
+        try {
+            const { rows } = await client.query(
+                `UPDATE users SET avatar = $1 WHERE regno = $2 RETURNING avatar`,
+                [uploadedUrl, userData.regno]
+            );
+            const data = rows[0];
+            return res.status(200).json(new ApiResponse('Avatar uploaded successfully', 200, uploadedUrl));
+        } catch (err) {
+            return res.status(500).json(new ApiError((err as Error).message, 500));
+        } finally {
+            client.release();
         }
     });
 
