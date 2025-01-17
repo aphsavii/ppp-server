@@ -10,7 +10,7 @@ const uri = `redis://${REDIS_USERNAME}:${REDIS_PASSWORD}@${REDIS_HOST}:${REDIS_P
 
 // REDIS CONNECTION
 const redisClient = createClient({
-    url: uri,
+    url: 'redis://127.0.0.1:6379',
 });
 const verifyOTP = async (otp: string, email: string) => {
     const storedOTP = await redisClient.get(`otp:${email}`);

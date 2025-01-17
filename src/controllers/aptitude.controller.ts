@@ -563,8 +563,12 @@ class AptitudeController {
 
     public getAptitudeToppers = asyncHandler(async (req: Request, res: Response) => {
         const aptiId = req.params.id;
+        if(!aptiId) return res.status(400).json(new ApiError("Bad request", 400));
+        const cache = await redisClient.get(`toppers:${aptiId}`);
+        if (cache) {
+            return res.status(200).json(new ApiResponse("Toppers fetched Successfully", 200, JSON.parse(cache)));
+        }
         const client = await dbPool.connect();
-
         try {
             // Fetch overall toppers
             const overallToppersQuery = await client.query(
@@ -621,6 +625,8 @@ class AptitudeController {
                 overall: overallToppers,
                 trade: tradeToppers,
             };
+
+            await redisClient.set(`toppers:${aptiId}`, JSON.stringify(response), { EX: 600 });
 
             return res.status(200).json(new ApiResponse('Toppers fetched successfully', 200, response));
         } catch (error) {
