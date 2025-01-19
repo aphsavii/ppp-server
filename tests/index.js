@@ -10,7 +10,7 @@ export const options = {
 };
 
 export default function () {
-  const res = http.post('https://pppsliet.me/aptitude/appear/28', {
+  const res = http.get('npm ', {
     trade: "GCS",
     regno: "2331080",
   });

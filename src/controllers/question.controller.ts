@@ -5,7 +5,7 @@ import ApiResponse from "../utils/ApiResponse";
 import { dbPool } from "../connections/pg-connection";
 import { QUESTION_TYPES } from "../constants";
 import uploadOnCloud from "../utils/uploadOnCloud";
-
+import openai from "../utils/openAi";
 interface Question {
     description: string,
     options: any,
@@ -27,7 +27,7 @@ interface filters {
 class QuestionController {
     public addQuestion = asyncHandler(async (req: Request, res: Response) => {
         const question: Question = req.body;
-        if ( !question.options || !question.correct_option || !question.difficulty_level || !question.question_type || !question.format || !question.topic_tags) {
+        if (!question.options || !question.correct_option || !question.difficulty_level || !question.question_type || !question.format || !question.topic_tags) {
             return res.status(400).json(new ApiError('All fields are required', 400));
         }
 
@@ -87,7 +87,7 @@ class QuestionController {
             let index = 1;
 
             // Add filters dynamically
-            if (filters.topic_tags && filters.topic_tags.length>0 ) {
+            if (filters.topic_tags && filters.topic_tags.length > 0) {
                 query += ` AND topic_tags @> $${index}`;
                 countQuery += ` AND topic_tags @> $${index}`;
                 values.push(filters.topic_tags);
@@ -128,6 +128,84 @@ class QuestionController {
         } catch (error) {
             console.error('Error fetching questions:', error);
             return res.status(500).json(new ApiError((error as Error).message, 500));
+        }
+    });
+
+    public explainUsingAi = asyncHandler(async (req: Request, res: Response) => {
+        const questionId = +req.params.id;
+    
+        try {
+            // Validate questionId
+            if (!questionId || isNaN(questionId)) {
+                return res.status(400).json(new ApiError('Invalid question ID', 400));
+            }
+    
+            const { rows } = await dbPool.query(
+                `SELECT * FROM questions WHERE id=$1`,
+                [questionId]
+            );
+            
+            const question = rows[0];
+            if (!question || question.format !== 'text') {
+                return res.status(404).json(new ApiError('Question not found', 404));
+            }
+    
+            const query = `
+            Please explain the following question and answer:
+            Question: ${question.description}
+            Options: ${question.options}
+            Correct Option: ${question.correct_option}
+            `;
+    
+            const stream = await openai.chat.completions.create({
+                model: 'gpt-3.5-turbo',
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are a helpful assistant that explains questions and their answers clearly.'
+                    },
+                    {
+                        role: 'user',
+                        content: query
+                    }
+                ],
+                stream: true
+            });
+    
+            // Set up SSE headers
+            res.writeHead(200, {
+                'Content-Type': 'text/event-stream',
+                'Cache-Control': 'no-cache',
+                'Connection': 'keep-alive',
+                'X-Accel-Buffering': 'no' // Disable buffering for nginx
+            });
+    
+            // Stream the response
+            try {
+                for await (const chunk of stream) {
+                    const content = chunk.choices[0]?.delta?.content || '';
+                    if (content) {
+                        res.write(`data: ${JSON.stringify({ content })}\n\n`);
+                    }
+                }
+            } catch (streamError) {
+                // Handle stream errors
+                console.error('Stream error:', streamError);
+                res.write(`data: ${JSON.stringify({ error: 'Stream interrupted' })}\n\n`);
+            } finally {
+                res.end();
+            }
+        } catch (error) {
+            // If headers haven't been sent yet, send error response
+            if (!res.headersSent) {
+                return res.status(500).json(new ApiError(
+                    error instanceof Error ? error.message : 'Internal server error',
+                    500
+                ));
+            }
+            // If headers have been sent, end the stream with error
+            res.write(`data: ${JSON.stringify({ error: 'An error occurred' })}\n\n`);
+            res.end();
         }
     });
 
