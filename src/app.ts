@@ -11,6 +11,7 @@ import questionRouter from './routes/question.routes';
 class App{
     public app: express.Application;
     public server: Server;
+    private env: string = process.env.ENV || 'PROD';
 
     constructor(){
         this.app = express();
@@ -18,6 +19,8 @@ class App{
         this.app.use(express.static('public'));
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
+        
+        if(this.env === 'DEV')
         this.app.use(cors(
             {
                 origin: "*",
