@@ -18,17 +18,18 @@ class App{
         this.app.use(express.static('public'));
         this.app.use(express.json());
         this.app.use(express.urlencoded({ extended: true }));
-        // this.app.use(cors(
-        //     {
-        //         origin: "*",
-        //         credentials: true
-        //     }
-        // ));
+        this.app.use(cors(
+            {
+                origin: "*",
+                credentials: true
+            }
+        ));
         this.app.get('/', (req: Request, res: Response) => {
             res.send('Hello World');
         });
         redisClient.on("error", (err) => console.log("Redis Client Error", err))
         redisClient.connect().then(() => console.log("Connected to redis"));
+        redisClient.on("ready", () => console.log("Redis client ready"));
     }
 
     public listen(){

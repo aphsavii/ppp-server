@@ -6,6 +6,7 @@ import { dbPool } from "../connections/pg-connection";
 import { QUESTION_TYPES } from "../constants";
 import uploadOnCloud from "../utils/uploadOnCloud";
 import openai from "../utils/openAi";
+import test from "node:test";
 interface Question {
     description: string,
     options: any,
@@ -133,30 +134,30 @@ class QuestionController {
 
     public explainUsingAi = asyncHandler(async (req: Request, res: Response) => {
         const questionId = +req.params.id;
-    
+
         try {
             // Validate questionId
             if (!questionId || isNaN(questionId)) {
                 return res.status(400).json(new ApiError('Invalid question ID', 400));
             }
-    
+
             const { rows } = await dbPool.query(
                 `SELECT * FROM questions WHERE id=$1`,
                 [questionId]
             );
-            
+
             const question = rows[0];
             if (!question || question.format !== 'text') {
                 return res.status(404).json(new ApiError('Question not found', 404));
             }
-    
+
             const query = `
             Please explain the following question and answer:
             Question: ${question.description}
             Options: ${question.options}
             Correct Option: ${question.correct_option}
             `;
-    
+
             const stream = await openai.chat.completions.create({
                 model: 'gpt-3.5-turbo',
                 messages: [
@@ -171,7 +172,7 @@ class QuestionController {
                 ],
                 stream: true
             });
-    
+
             // Set up SSE headers
             res.writeHead(200, {
                 'Content-Type': 'text/event-stream',
@@ -179,7 +180,7 @@ class QuestionController {
                 'Connection': 'keep-alive',
                 'X-Accel-Buffering': 'no' // Disable buffering for nginx
             });
-    
+
             // Stream the response
             try {
                 for await (const chunk of stream) {
@@ -207,6 +208,22 @@ class QuestionController {
             res.write(`data: ${JSON.stringify({ error: 'An error occurred' })}\n\n`);
             res.end();
         }
+    });
+
+    public getQuestionTopics = asyncHandler(async (req: Request, res: Response) => {
+        let type = req.query.type || '';
+        if (!type) return res.status(400).json(new ApiError('Question type is required', 400));
+        type = String(type).toUpperCase();
+        try {
+            const { rows
+            } = await dbPool.query(
+                `SELECT DISTINCT topic_tags FROM questions WHERE question_type=$1`, [type]
+            );
+            const topics = rows.map((row: any) => row.topic_tags).flat();
+            return res.status(200).json(new ApiResponse('Question topics retrieved successfully', 200, topics));
+        } catch (error) {
+            return res.status(500).json(new ApiError((error as Error).message, 500));
+        }   
     });
 
 }

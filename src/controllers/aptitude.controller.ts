@@ -223,7 +223,7 @@ class AptitudeController {
 
         const cache = await redisClient.get(`apti-${aptitudeId}:${userData.trade}`);
         if (cache) {
-            return res.status(200).json(new ApiResponse("Aptitude fetched Successfully", 200, JSON.parse(cache)));
+            return res.status(200).json(new ApiResponse("Aptitude fetched Successfully", 200, cache));
         }
 
         const client = await dbPool.connect();
