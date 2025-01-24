@@ -26,10 +26,10 @@ function isPointInQuadrilateral(point: Point, quadrilateral: [Point, Point, Poin
 }
 
 const quadrilateral: [Point, Point, Point, Point] = [
-    { x: 30.218407, y: 75.698685 },
-    { x: 30.217726, y: 75.698735 },
-    { x: 30.217731, y: 75.699384 },
-    { x: 30.218405, y: 75.699365 }
+    { x: 30.2183969, y: 75.6987946 },
+    { x: 30.2177920, y: 75.6987651 },
+    { x: 30.2177734, y: 75.6997468 },
+    { x: 30.2183946, y: 75.6997146 }
 ];
 
 const checkLocationPresence = (point: Point): boolean => {
