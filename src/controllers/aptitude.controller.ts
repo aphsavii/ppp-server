@@ -5,6 +5,7 @@ import ApiResponse from "../utils/ApiResponse";
 import ApiError from "../utils/ApiError";
 import { CustomRequest } from "../middlewares/auth.middleware";
 import { redisClient } from "../connections/redis-connection";
+import checkLocationPresence from "../utils/checkLocationPresence";
 
 interface Aptitude {
     id?: number,
@@ -217,9 +218,17 @@ class AptitudeController {
         const userData: {
             regno: string,
             trade: string,
+            lat: number,
+            long: number
         } = req.body;
         const aptitudeId = req.params.id;
         if (!userData || !aptitudeId) return res.status(400).json(new ApiError("Bad request", 400));
+
+        if (!checkLocationPresence(
+            { x: userData.lat, y: userData.long },
+        )) {
+            return res.status(403).json(new ApiError("You are not present at the test venue", 403));
+        }
 
         const cache = await redisClient.get(`apti-${aptitudeId}:${userData.trade}`);
         if (cache) {
@@ -563,7 +572,7 @@ class AptitudeController {
 
     public getAptitudeToppers = asyncHandler(async (req: Request, res: Response) => {
         const aptiId = req.params.id;
-        if(!aptiId) return res.status(400).json(new ApiError("Bad request", 400));
+        if (!aptiId) return res.status(400).json(new ApiError("Bad request", 400));
         const cache = await redisClient.get(`toppers:${aptiId}`);
         if (cache) {
             return res.status(200).json(new ApiResponse("Toppers fetched Successfully", 200, JSON.parse(cache)));
@@ -617,7 +626,7 @@ class AptitudeController {
                 WHERE rank <= 3;`,
                 [aptiId]
             );
-            
+
 
             const tradeToppers = tradeToppersQuery.rows;
 
