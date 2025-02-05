@@ -643,7 +643,7 @@ class AptitudeController {
         const client = await dbPool.connect();
         try {
             const { rows } = await client.query(
-                `SELECT id,asyncHandler name, test_timestamp, duration 
+                `SELECT id, name, test_timestamp, duration 
                  FROM aptitude_tests
                  WHERE test_timestamp < $1 
                  ORDER BY test_timestamp DESC`,
