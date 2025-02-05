@@ -1,6 +1,6 @@
 import express from 'express';
 import userController from '../controllers/user.controller';
-import { verifyJwt } from '../middlewares/auth.middleware';
+import { verifyJwt, adminAccess } from '../middlewares/auth.middleware';
 import upload from '../middlewares/upload.middleware';
 
 const userRouter = express.Router();
@@ -12,5 +12,8 @@ userRouter.get('/generate-otp/:regno', userController.generateOTP);
 userRouter.post('/forgot-password', userController.forgotPass);
 userRouter.get('/dashboard', verifyJwt, userController.getUserDashboard);
 userRouter.post('/update-avatar', verifyJwt, upload.single('avatar'), userController.uploadAvatar);
+userRouter.post('/block', verifyJwt, adminAccess, userController.blockUser);
+userRouter.post('/unblock', verifyJwt, adminAccess, userController.unblockUser);
+userRouter.get('/blocked', verifyJwt, adminAccess, userController.getBlockedUsers);
 
 export default userRouter;

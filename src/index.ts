@@ -4,3 +4,4 @@ import app from "./app";
 testConnection();
 app.listen();
 app.initializeRoutes();
+

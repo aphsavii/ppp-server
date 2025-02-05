@@ -1,4 +1,4 @@
-import { Request, Response } from 'express';
+import e, { Request, Response } from 'express';
 import ApiResponse from '../utils/ApiResponse';
 import ApiError from '../utils/ApiError';
 import { asyncHandler } from '../utils/asyncHandler';
@@ -73,6 +73,7 @@ class UserController {
             }
 
             const user = rows[0];
+            if (user?.blocked == 1) return res.status(401).json(new ApiError('You are blocked, Contact your respective JSPR.', 400));
             const isPasswordMatch = await bcrypt.compare(password, user.password);
             if (!isPasswordMatch) {
                 return res.status(401).json(new ApiError('Invalid email or password', 400));
@@ -297,6 +298,51 @@ class UserController {
             return res.status(500).json(new ApiError((err as Error).message, 500));
         } finally {
             client.release();
+        }
+    });
+
+    public blockUser = asyncHandler(async (req: Request, res: Response) => {
+        const users: string[] = req.body.users || [];
+
+        try {
+            const query = `UPDATE users SET blocked = 1 WHERE regno = ANY($1)`;
+            const { rowCount } = await dbPool.query(query, [users]);
+            if (rowCount === 0) return res.status(404).json(new ApiError("No user found", 404));
+            return res.status(200).json(new ApiResponse("Users Blocked Successfuly", 200, users));
+        } catch (error) {
+            return res.status(500).json(new ApiError((error as Error).message, 500));
+        }
+    });
+
+    public unblockUser = asyncHandler(async (req: Request, res: Response) => {
+        const users: string[] = req.body.users || [];
+
+        try {
+            const query = `UPDATE users SET blocked = 0 WHERE regno = ANY($1)`;
+            const { rowCount } = await dbPool.query(query, [users]);
+            if (rowCount === 0) return res.status(404).json(new ApiError("No user found", 404));
+            return res.status(200).json(new ApiResponse("Users Blocked Successfuly", 200, users));
+        } catch (error) {
+            return res.status(500).json(new ApiError((error as Error).message, 500));
+        }
+    });
+
+    public getBlockedUsers = asyncHandler(async (req: Request, res: Response) => {
+        const trade = req.query?.t || '';
+
+        try {
+            let query = `SELECT regno, name, trade FROM users WHERE blocked=$1`;
+            let options: any[] = [1];
+            if (trade) {
+                query += ` AND trade=$2`;
+                options.push(trade);
+            }
+            const { rows } = await dbPool.query(query, options);
+            if (rows.length == 0) return res.status(404).json(new ApiError("No user found", 404));
+            return res.status(200).json(new ApiResponse('Blocked Users...', 200, rows));
+
+        } catch (error) {
+            return res.status(500).json(new ApiError((error as Error).message, 500));
         }
     });
 

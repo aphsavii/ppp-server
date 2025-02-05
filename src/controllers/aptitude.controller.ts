@@ -224,11 +224,11 @@ class AptitudeController {
         const aptitudeId = req.params.id;
         if (!userData || !aptitudeId) return res.status(400).json(new ApiError("Bad request", 400));
 
-        if (!checkLocationPresence(
-            { x: userData.lat, y: userData.long },
-        )) {
-            return res.status(403).json(new ApiError("You are not present at the test venue", 403));
-        }
+        // if (!checkLocationPresence(
+        //     { x: userData.lat, y: userData.long },
+        // )) {
+        //     return res.status(403).json(new ApiError("You are not present at the test venue", 403));
+        // }
 
         const cache = await redisClient.get(`apti-${aptitudeId}:${userData.trade}`);
         if (cache) {
@@ -322,7 +322,6 @@ class AptitudeController {
         const client = await dbPool.connect();
 
         try {
-
             // Check if time still left or aptitude is started or not
             const currentTimestamp = Math.floor(Date.now() / 1000);
 
@@ -346,22 +345,16 @@ class AptitudeController {
             }
 
 
-            // Check if aptitude test exists
-            const { rows: aptitudeRows } = await client.query(
-                `SELECT id, name, test_timestamp, duration FROM aptitude_tests WHERE id = $1`,
-                [aptitudeId]
-            );
-            if (aptitudeRows?.length === 0) {
-                return res.status(404).json(new ApiError('Aptitude test not found', 404));
-            }
-
             // Check if user exists
             const { rows: userRows } = await client.query(
-                `SELECT regno FROM users WHERE regno = $1`,
+                `SELECT regno, blocked FROM users WHERE regno = $1`,
                 [userData.regno]
             );
             if (userRows?.length === 0) {
                 return res.status(404).json(new ApiError('User has not registered', 404));
+            }
+            if (userRows[0].blocked) {
+                return res.status(403).json(new ApiError('Your quiz is blocked, Contact Admin', 403));
             }
 
             // Check if user has already appeared for the test
@@ -650,7 +643,7 @@ class AptitudeController {
         const client = await dbPool.connect();
         try {
             const { rows } = await client.query(
-                `SELECT id, name, test_timestamp, duration 
+                `SELECT id,asyncHandler name, test_timestamp, duration 
                  FROM aptitude_tests
                  WHERE test_timestamp < $1 
                  ORDER BY test_timestamp DESC`,
@@ -663,6 +656,7 @@ class AptitudeController {
             client.release();
         }
     });
+
 
 }
 

@@ -15,6 +15,7 @@ CREATE TABLE users (
     last_active TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     password VARCHAR(255) NOT NULL,
     access_token VARCHAR(255),
+    blocked INT DEFAULT 0
 );
 
 -- Table: AptitudeTests
@@ -55,6 +56,7 @@ CREATE TABLE user_responses (
     response_time  VARCHAR(30) NOT NULL,
     marks INT DEFAULT 0
 );
+
 
 -- DSA Sheet Questions
 CREATE TABLE dsa_questions (
