@@ -15,5 +15,7 @@ userRouter.post('/update-avatar', verifyJwt, upload.single('avatar'), userContro
 userRouter.post('/block', verifyJwt, adminAccess, userController.blockUser);
 userRouter.post('/unblock', verifyJwt, adminAccess, userController.unblockUser);
 userRouter.get('/blocked', verifyJwt, adminAccess, userController.getBlockedUsers);
+userRouter.post('/add-jsprs', verifyJwt, adminAccess, userController.addJsprs);
+userRouter.get('/jsprs', userController.getJsprs);
 
 export default userRouter;

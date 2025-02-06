@@ -57,6 +57,12 @@ CREATE TABLE user_responses (
     marks INT DEFAULT 0
 );
 
+-- Table: JSPRS
+CREATE TABLE jsprs (
+    id SERIAL PRIMARY KEY,
+    regno VARCHAR(7) NOT NULL UNIQUE REFERENCES Users(regno) ON DELETE CASCADE ,
+);
+
 
 -- DSA Sheet Questions
 CREATE TABLE dsa_questions (
