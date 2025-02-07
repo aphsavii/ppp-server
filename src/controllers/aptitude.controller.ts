@@ -224,11 +224,11 @@ class AptitudeController {
         const aptitudeId = req.params.id;
         if (!userData || !aptitudeId) return res.status(400).json(new ApiError("Bad request", 400));
 
-        // if (!checkLocationPresence(
-        //     { x: userData.lat, y: userData.long },
-        // )) {
-        //     return res.status(403).json(new ApiError("You are not present at the test venue", 403));
-        // }
+        if (!checkLocationPresence(
+            { x: userData.lat, y: userData.long },
+        )) {
+            return res.status(403).json(new ApiError("You are not present at the test venue", 403));
+        }
 
         const cache = await redisClient.get(`apti-${aptitudeId}:${userData.trade}`);
         if (cache) {
