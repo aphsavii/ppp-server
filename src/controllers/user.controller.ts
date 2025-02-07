@@ -10,7 +10,6 @@ import { redisClient } from '../connections/redis-connection';
 import { otpFormat } from '../utils/mail/OTPFormat';
 import { sendMail } from '../utils/mail/sendMail';
 import uploadOnCloud from '../utils/uploadOnCloud';
-import { query } from 'express';
 
 interface Register {
     name: string,
@@ -83,7 +82,8 @@ class UserController {
             const accessToken = generateJwt(user.regno);
             const updateQuery = `
                 UPDATE users
-                SET access_token = $1
+                SET access_token = $1,
+                last_active = NOW()
                 WHERE regno = $2
                 RETURNING regno, name, trade, batch, access_token, role
             `;
