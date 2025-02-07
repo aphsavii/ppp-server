@@ -125,6 +125,14 @@ class UserController {
                 return res.status(401).json(new ApiError('Invalid access token', 401));
             }
 
+            // Update last active
+            const updateQuery = `
+                UPDATE users
+                SET last_active = NOW()
+                WHERE regno = $1
+            `;
+            await client.query(updateQuery, [regno]);
+            
             const message = 'Session is valid';
             const data = user;
             const apiResponse = new ApiResponse(message, 200, data);
