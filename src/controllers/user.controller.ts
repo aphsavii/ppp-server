@@ -337,7 +337,7 @@ class UserController {
     });
 
     public getBlockedUsers = asyncHandler(async (req: Request, res: Response) => {
-        const trade = req.query?.t || '';
+        const trade = req.query?.trade || '';
 
         try {
             let query = `SELECT regno, name, trade FROM users WHERE blocked=$1`;
