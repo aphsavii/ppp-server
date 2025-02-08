@@ -132,7 +132,7 @@ class UserController {
                 WHERE regno = $1
             `;
             await client.query(updateQuery, [regno]);
-            
+
             const message = 'Session is valid';
             const data = user;
             const apiResponse = new ApiResponse(message, 200, data);
@@ -379,7 +379,7 @@ class UserController {
         const batch = req.query?.batch || '';
         try {
             // join with users and group by trade
-            const { rows} = await dbPool.query(`SELECT u.regno, u.name, u.trade, u.avatar, u.batch FROM users u JOIN jsprs j ON u.regno = j.regno WHERE u.batch = $1`, [batch]);
+            const { rows } = await dbPool.query(`SELECT u.regno, u.name, u.trade, u.avatar, u.batch FROM users u JOIN jsprs j ON u.regno = j.regno WHERE u.batch = $1`, [batch]);
             if (rows.length === 0) return res.status(404).json(new ApiError("No JSPR found", 404));
             return res.status(200).json(new ApiResponse('JSPRs...', 200, rows));
         } catch (error) {
@@ -387,6 +387,48 @@ class UserController {
         }
 
     });
+
+    changePassword = asyncHandler(async (req: CustomRequest, res: Response) => {
+        const { oldPassword, newPassword, regno } = req.body;
+        const userData = req.user;
+        const isAdmin = userData.role === 'admin';
+        const client = await dbPool.connect();
+        try {
+            const { rows } = await client.query(
+                `SELECT * FROM users WHERE regno = $1`,
+                [regno]
+            );
+            if (rows.length === 0) {
+                return res.status(401).json(new ApiError('User is not Registered', 400));
+            }
+            const user = rows[0];
+            if (user.role == 'admin' && userData.regno != user.regno) return res.status(401).json(new ApiError('Unauthorized Request', 401));
+
+            const isPasswordMatch = await bcrypt.compare(oldPassword, user.password) || isAdmin;
+            if (!isPasswordMatch) {
+                return res.status(401).json(new ApiError('Invalid old password', 400));
+            }
+
+            const hashedPassword = await bcrypt.hash(newPassword, 10);
+            const updateQuery = `
+                UPDATE users
+                SET password = $1
+                WHERE regno = $2
+                RETURNING regno, name, trade, batch, role
+            `;
+            const updateValues = [hashedPassword, user.regno];
+            const { rows: updateRows } = await client.query(updateQuery, updateValues);
+
+            const message = 'Password changed successfully';
+            const data = updateRows[0];
+            const apiResponse = new ApiResponse(message, 200, data);
+            return res.status(200).json(apiResponse);
+        } catch (err) {
+            return res.status(500).json(new ApiError((err as Error).message, 500));
+        } finally {
+            client.release();
+        }
+    })
 
 }
 

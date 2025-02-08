@@ -17,5 +17,6 @@ userRouter.post('/unblock', verifyJwt, adminAccess, userController.unblockUser);
 userRouter.get('/blocked', verifyJwt, adminAccess, userController.getBlockedUsers);
 userRouter.post('/add-jsprs', verifyJwt, adminAccess, userController.addJsprs);
 userRouter.get('/jsprs', userController.getJsprs);
+userRouter.post('/change-password', verifyJwt, userController.changePassword);
 
 export default userRouter;

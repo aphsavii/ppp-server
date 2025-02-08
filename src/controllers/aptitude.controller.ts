@@ -659,6 +659,7 @@ class AptitudeController {
     });
 
 
+
 }
 
 export default new AptitudeController();
