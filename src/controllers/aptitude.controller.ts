@@ -502,7 +502,7 @@ class AptitudeController {
             }
 
             const answers: Answer[] = JSON.parse(rows[0].answers);
-            const userMarks = rows[0].marks;
+            let userMarks = 0;
 
             // Query to get all questions for the aptitude test 
             const questionQuery = `
@@ -542,6 +542,7 @@ class AptitudeController {
 
             // Prepare the response with questions and user's selected answers
             const response = answers.map((ans) => {
+                userMarks += questionRows.rows.find((q: any) => q.id === ans.question_id).correct_option === ans.selected_option ? 1 : 0;
                 const question = questionRows.rows.find((q: any) => q.id === ans.question_id);
                 return {
                     question,
