@@ -432,6 +432,25 @@ class UserController {
         }
     })
 
+    editProfile = asyncHandler(async (req: CustomRequest, res: Response) => {
+        const userData = req.user;  // Logged in user data
+
+        const { mobile } = req.body;
+
+        try {
+            const client = await dbPool.connect();
+            const { rows } = await client.query(
+                `UPDATE users SET mobile = $1 WHERE regno = $2 RETURNING regno, name, trade, batch, mobile`,
+                [mobile, userData.regno]
+            );
+            const data = rows[0];
+            return res.status(200).json(new ApiResponse('Profile updated successfully', 200, data));
+
+        } catch (error) {
+            return res.status(500).json(new ApiError("Internal Server Error", 500));
+        }
+    });
+
 }
 
 export default new UserController();
