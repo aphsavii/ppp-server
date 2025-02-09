@@ -218,8 +218,6 @@ class AptitudeController {
         const userData: {
             regno: string,
             trade: string,
-            lat: number,
-            long: number
         } = req.body;
         const aptitudeId = req.params.id;
         if (!userData || !aptitudeId) return res.status(400).json(new ApiError("Bad request", 400));
