@@ -381,7 +381,7 @@ class UserController {
         const batch = req.query?.batch || '';
         try {
             // join with users and group by trade
-            const { rows } = await dbPool.query(`SELECT u.regno, u.name, u.trade, u.avatar, u.batch FROM users u JOIN jsprs j ON u.regno = j.regno WHERE u.batch = $1`, [batch]);
+            const { rows } = await dbPool.query(`SELECT u.regno, u.name, u.mobile, u.trade, u.avatar, u.batch FROM users u JOIN jsprs j ON u.regno = j.regno WHERE u.batch = $1`, [batch]);
             if (rows.length === 0) return res.status(404).json(new ApiError("No JSPR found", 404));
             return res.status(200).json(new ApiResponse('JSPRs...', 200, rows));
         } catch (error) {
