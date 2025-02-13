@@ -338,13 +338,20 @@ class UserController {
         }
     });
 
-    public getBlockedUsers = asyncHandler(async (req: Request, res: Response) => {
+    public getBlockedUsers = asyncHandler(async (req: CustomRequest, res: Response) => {
         const trade = req.query?.trade || '';
+
+        if (trade && req.user.role == 'jspr' && req.user.trade != trade) return res.status(401).json(new ApiError("You can view only of your branch", 401));
 
         try {
             let query = `SELECT regno, name, trade FROM users WHERE blocked=$1`;
             let options: any[] = [1];
-            if (trade) {
+
+            if (req.user.role === 'jspr') {
+                query += ` AND trade=$2`;
+                options.push(req.user.trade);
+            }
+            else if (trade && req.user.role === 'admin') {
                 query += ` AND trade=$2`;
                 options.push(trade);
             }
@@ -366,10 +373,11 @@ class UserController {
 
         const client = await dbPool.connect();
         try {
-            const query = `INSERT INTO jsprs (regno) VALUES ${regnos.map((_, i) => `($${i + 1})`).join(', ')}`;
-            const { rowCount } = await client.query(query, regnos);
+            // update role in users table 
+            const query = `UPDATE users SET role = 'jspr' WHERE regno = ANY($1)`; // update role to jspr
+            const { rowCount } = await client.query(query, [regnos]);
             if (rowCount === 0) return res.status(404).json(new ApiError("No user found", 404));
-            return res.status(200).json(new ApiResponse('JSPR added successfully', 200, regnos));
+            return res.status(200).json(new ApiResponse("JSPRs added successfully", 200, regnos));
         } catch (error) {
             return res.status(500).json(new ApiError((error as Error).message, 500));
         } finally {
@@ -381,7 +389,7 @@ class UserController {
         const batch = req.query?.batch || '';
         try {
             // join with users and group by trade
-            const { rows } = await dbPool.query(`SELECT u.regno, u.name, u.mobile, u.trade, u.avatar, u.batch FROM users u JOIN jsprs j ON u.regno = j.regno WHERE u.batch = $1`, [batch]);
+            const { rows } = await dbPool.query(`SELECT regno, name, mobile, trade, avatar, batch FROM users WHERE role = 'jspr' OR role='admin' AND batch=$1 `, [batch]);
             if (rows.length === 0) return res.status(404).json(new ApiError("No JSPR found", 404));
             return res.status(200).json(new ApiResponse('JSPRs...', 200, rows));
         } catch (error) {
