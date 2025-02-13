@@ -6,4 +6,4 @@
 - Open the browser and go to `http://localhost:3000/`
 
 ## ER Diagram
-<img src="./src/sql/er-diagram.svg" alt="ER DIagram" width="400">
+<img src="./src/sql/er-diagram.svg" alt="ER DIagram" width="600">
