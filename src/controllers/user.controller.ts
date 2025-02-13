@@ -312,10 +312,18 @@ class UserController {
         }
     });
 
-    public blockUser = asyncHandler(async (req: Request, res: Response) => {
+    public blockUser = asyncHandler(async (req: CustomRequest, res: Response) => {
         const users: string[] = req.body.users || [];
-
+        const isJspr = req.user.role === 'jspr';
         try {
+            // check if all regno are of the same trade as jspr
+            if (isJspr) {
+                const { rows } = await dbPool.query(`SELECT trade FROM users WHERE regno = ANY($1)`, [users]);
+                for (let row of rows) {
+                    if (row.trade !== req.user.trade) return res.status(401).json(new ApiError("You can block only of your branch", 401));
+                }
+            }
+
             const query = `UPDATE users SET blocked = 1 WHERE regno = ANY($1)`;
             const { rowCount } = await dbPool.query(query, [users]);
             if (rowCount === 0) return res.status(404).json(new ApiError("No user found", 404));
@@ -325,10 +333,17 @@ class UserController {
         }
     });
 
-    public unblockUser = asyncHandler(async (req: Request, res: Response) => {
+    public unblockUser = asyncHandler(async (req: CustomRequest, res: Response) => {
         const users: string[] = req.body.users || [];
-
+        const isJspr = req.user.role === 'jspr';
         try {
+            if (isJspr) {
+                const { rows } = await dbPool.query(`SELECT trade FROM users WHERE regno = ANY($1)`, [users]);
+                for (let row of rows) {
+                    if (row.trade !== req.user.trade) return res.status(401).json(new ApiError("You can unblock only of your branch", 401));
+                }
+            }
+
             const query = `UPDATE users SET blocked = 0 WHERE regno = ANY($1)`;
             const { rowCount } = await dbPool.query(query, [users]);
             if (rowCount === 0) return res.status(404).json(new ApiError("No user found", 404));
