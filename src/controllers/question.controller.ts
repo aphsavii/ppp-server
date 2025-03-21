@@ -32,7 +32,7 @@ class QuestionController {
             return res.status(400).json(new ApiError('All fields are required', 400));
         }
 
-        question.options = question.options.split(',');
+        question.options = question.options.split('/|/');
         question.topic_tags = question.topic_tags.split(',');
 
         if (question.format === 'img') {
