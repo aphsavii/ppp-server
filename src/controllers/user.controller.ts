@@ -22,7 +22,7 @@ class UserController {
     public register = asyncHandler(async (req: Request, res: Response) => {
         const { name, regno, trade, batch, password } = req.body as Register;
 
-        return res.status(400).json(new ApiError('Registration is closed! Contact your SPR', 400));
+        // return res.status(400).json(new ApiError('Registration is closed! Contact your SPR', 400));
 
         if (!name || !regno || !trade || !batch || !password) {
             return res.status(400).json(new ApiError('All fields are required', 400));
