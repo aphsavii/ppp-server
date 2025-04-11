@@ -347,7 +347,7 @@ class UserController {
             const query = `UPDATE users SET blocked = 0 WHERE regno = ANY($1)`;
             const { rowCount } = await dbPool.query(query, [users]);
             if (rowCount === 0) return res.status(404).json(new ApiError("No user found", 404));
-            return res.status(200).json(new ApiResponse("Users Blocked Successfuly", 200, users));
+            return res.status(200).json(new ApiResponse("Users unblocked Successfuly", 200, users));
         } catch (error) {
             return res.status(500).json(new ApiError((error as Error).message, 500));
         }
@@ -402,9 +402,10 @@ class UserController {
 
     getJsprs = asyncHandler(async (req: Request, res: Response) => {
         const batch = req.query?.batch || '';
+        console.log(batch); 
         try {
             // join with users and group by trade
-            const { rows } = await dbPool.query(`SELECT regno, name, mobile, trade, avatar, batch FROM users WHERE role = 'jspr' OR role='admin' AND batch=$1 `, [batch]);
+            const { rows } = await dbPool.query(`SELECT regno, name, mobile, trade, avatar, batch FROM users WHERE batch=$1 AND (role = 'jspr' OR role = 'admin')`, [batch]);
             if (rows.length === 0) return res.status(404).json(new ApiError("No JSPR found", 404));
             return res.status(200).json(new ApiResponse('JSPRs...', 200, rows));
         } catch (error) {

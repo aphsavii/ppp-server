@@ -12,7 +12,7 @@ userRouter.get('/generate-otp/:regno', userController.generateOTP);
 userRouter.post('/forgot-password', userController.forgotPass);
 userRouter.get('/dashboard', verifyJwt, userController.getUserDashboard);
 userRouter.post('/update-avatar', verifyJwt, upload.single('avatar'), userController.uploadAvatar);
-userRouter.post('/block', verifyJwt, adminAccess, userController.blockUser);
+userRouter.post('/block', verifyJwt, jsprAccess, userController.blockUser);
 userRouter.post('/unblock', verifyJwt, jsprAccess, userController.unblockUser);
 userRouter.get('/blocked', verifyJwt, jsprAccess, userController.getBlockedUsers);
 userRouter.post('/add-jsprs', verifyJwt, adminAccess, userController.addJsprs);
